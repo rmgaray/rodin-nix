@@ -28,6 +28,7 @@
           gtk4
           webkitgtk_4_1
           zlib
+          rodin380
           self.outputs.packages.${system}.swt-links
         ]) ++ (with pkgs.xorg; [
           libX11
@@ -41,10 +42,12 @@
           alsa-lib
         ]);
         runScript = "${rodin380}/rodin";
+        profile =
+        ''
+        export XDG_DATA_DIRS=$XDG_DATA_DIRS:${pkgs.gtk4}/share/gsettings-schemas/gtk4-4.18.5/glib-2.0/schemas
+        '';
       };
     in {
-      devShell = fhs.env;
-
       packages = {
         default = self.outputs.packages.${system}.rodin;
 
