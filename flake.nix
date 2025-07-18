@@ -23,7 +23,7 @@
       fhs = pkgs.buildFHSEnv {
         name = "rodin-env";
         targetPkgs = pkgs: (with pkgs; [
-          jdk11
+          jdk23
           glib
           gtk4
           webkitgtk_4_1
