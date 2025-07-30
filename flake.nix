@@ -21,12 +21,11 @@
     let
       pkgs = nixpkgs.legacyPackages.${system};
       fhs = pkgs.buildFHSEnv {
-        name = "rodin-env";
+        name = "rodin";
         targetPkgs = pkgs: (with pkgs; [
           jdk23
           glib
-          gtk4
-          webkitgtk_4_1
+          gtk3
           zlib
           rodin380
           self.outputs.packages.${system}.swt-links
@@ -42,9 +41,12 @@
           alsa-lib
         ]);
         runScript = "${rodin380}/rodin";
+        # If we don't manually add the directory with gtk3 gsettings schemas,
+        # the file dialog window does not work.
+        # See: https://nixos.org/manual/nixpkgs/stable/#ssec-gnome-packaging
         profile =
         ''
-        export XDG_DATA_DIRS=$XDG_DATA_DIRS:${pkgs.gtk4}/share/gsettings-schemas/gtk4-4.18.5/glib-2.0/schemas
+        export XDG_DATA_DIRS=$XDG_DATA_DIRS:${pkgs.gtk4}/share/gsettings-schemas/gtk4-4.18.5/share:${pkgs.gtk3}/share/gsettings-schemas/gtk+3-3.24.49 
         '';
       };
     in {
@@ -53,13 +55,12 @@
 
         rodin = fhs;
 
-        # We create a symbolic links for SWT so eclipse can find it.
+        # We create symbolic links for SWT so eclipse can find it.
         swt-links = pkgs.stdenv.mkDerivation {
           name = "swt-links";
           buildCommand = ''
             mkdir -p $out/lib
             ln -s ${pkgs.swt}/lib/libswt-pi3-gtk-4967r8.so $out/lib/libswt-pi3-gtk.so
-            ln -s ${pkgs.swt}/lib/libswt-gtk-4967r8.so $out/lib/libswt-pi4-gtk.so
           '';
         };
       };
