@@ -1,6 +1,6 @@
 {
 
-  description = "FHS wrapper for Rodin";
+  description = "Wrapper for Rodin 3.8";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -20,47 +20,69 @@
     flake-utils.lib.eachDefaultSystem (system:
     let
       pkgs = nixpkgs.legacyPackages.${system};
-      fhs = pkgs.buildFHSEnv {
-        name = "rodin";
-        targetPkgs = pkgs: (with pkgs; [
-          jdk23
-          glib
-          gtk3
-          zlib
-          rodin380
-          self.outputs.packages.${system}.swt-links
-        ]) ++ (with pkgs.xorg; [
-          libX11
-          libXcursor
-          libXrandr
-          libXrender
-          libXtst
-        ]);
-        multiPkgs = pkgs: (with pkgs; [
-          udev
-          alsa-lib
-        ]);
-        runScript = "${rodin380}/rodin";
-        # If we don't manually add the directory with gtk3 gsettings schemas,
-        # the file dialog window does not work.
-        # See: https://nixos.org/manual/nixpkgs/stable/#ssec-gnome-packaging
-        profile =
-        ''
-        export XDG_DATA_DIRS=$XDG_DATA_DIRS:${pkgs.gtk4}/share/gsettings-schemas/gtk4-4.18.5/share:${pkgs.gtk3}/share/gsettings-schemas/gtk+3-3.24.49 
-        '';
-      };
+      lib = pkgs.lib;
     in {
       packages = {
         default = self.outputs.packages.${system}.rodin;
 
-        rodin = fhs;
+        # Mostly stolen from eclipse/default.nix in nixpkgs.
+        rodin = pkgs.stdenv.mkDerivation {
+          name = "rodin";
+          version = "3.8.0";
 
-        # We create symbolic links for SWT so eclipse can find it.
-        swt-links = pkgs.stdenv.mkDerivation {
-          name = "swt-links";
-          buildCommand = ''
-            mkdir -p $out/lib
-            ln -s ${pkgs.swt}/lib/libswt-pi3-gtk-4967r8.so $out/lib/libswt-pi3-gtk.so
+          desktopItem = pkgs.makeDesktopItem {
+            name = "Rodin";
+            exec = "rodin";
+            icon = "rodin";
+            comment = "Integrated Development Environment for Event-B";
+            desktopName = "Rodin 3.8.0";
+            genericName = "Integrated Development Environment";
+            categories = [ "Development" ];
+          };
+
+          nativeBuildInputs = [
+            pkgs.makeWrapper
+          ];
+
+          buildInputs = with pkgs; [
+            fontconfig
+            freetype
+            glib
+            gsettings-desktop-schemas
+            gtk3
+            jdk
+            xorg.libX11
+            xorg.libXrender
+            xorg.libXtst
+            libsecret
+            zlib
+            webkitgtk_4_0
+          ];
+
+          buildCommand = with pkgs;
+          ''
+            mkdir -p $out
+            cp -r ${rodin380} $out/rodin
+            chmod -R u+w $out/rodin
+
+            # Patch binaries.
+            interpreter="$(cat $NIX_BINTOOLS/nix-support/dynamic-linker)"
+            patchelf --set-interpreter $interpreter $out/rodin/rodin
+
+            makeWrapper $out/rodin/rodin $out/bin/rodin \
+              --prefix PATH : ${jdk23}/bin \
+              --prefix LD_LIBRARY_PATH : ${
+                lib.makeLibraryPath
+                  [
+                    glib
+                    gtk3
+                    xorg.libXtst
+                    libsecret
+                    webkitgtk_4_0
+                  ]
+              } \
+              --prefix GIO_EXTRA_MODULES : "${glib-networking}/lib/gio/modules" \
+              --prefix XDG_DATA_DIRS : "$GSETTINGS_SCHEMAS_PATH" \
           '';
         };
       };
