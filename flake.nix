@@ -23,7 +23,31 @@
       lib = pkgs.lib;
     in {
       packages = {
-        default = self.outputs.packages.${system}.rodin;
+        default = self.outputs.packages.${system}.rodinFhs;
+
+        # Rodin works by itself without a FHS env, but we need it to make the package
+        # install feature work.
+        rodinFhs = pkgs.buildFHSEnv {
+           name = "rodinFhs";
+           targetPkgs = pkgs: (with pkgs; [
+             jdk23
+             glib
+             gtk3
+             zlib
+             self.outputs.packages.${system}.rodin
+           ]) ++ (with pkgs.xorg; [
+             libX11
+             libXcursor
+             libXrandr
+             libXrender
+             libXtst
+           ]);
+           multiPkgs = pkgs: (with pkgs; [
+             udev
+             alsa-lib
+           ]);
+           runScript = "rodin";
+         }; 
 
         # Mostly stolen from eclipse/default.nix in nixpkgs.
         rodin = pkgs.stdenv.mkDerivation {
